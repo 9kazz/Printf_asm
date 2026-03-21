@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "noob debug",
+      "program": "${workspaceFolder}/Printf.exe", // <-- захардкоженный исполняемый файл, который надо дебажить
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
