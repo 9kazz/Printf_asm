@@ -20,7 +20,9 @@ global _start                                   ; entry point name for ld
             
 ;==================================================================================================================                    
 _start:             mov rsi, String
+                    push 'A'
                     call Printf
+                    pop rax
 
                     mov rax, 0x3C      ; exit64 (rdi)
                     xor rdi, rdi
@@ -35,26 +37,50 @@ _start:             mov rsi, String
 ; Destr:    rax
 ;------------------------------------------------------------------------------------------------------------------
 
-Printf:             push_ rsi, rdi
+Printf:             push rbp
+                    mov rbp, rsp
+
+                    push_ rsi, rdi
 
                     mov rdi, Str_buf
+                    xor rcx, rcx                ; arguments counter
 
-.get_1char:         cmp byte [rsi], 0
-                        je .end
+get_1char:          cmp byte [rsi], 0
+                        je end
                     cmp byte [rsi], '%'
-                        je .end
+                        je specifier_handle
                     lodsb 
                     stosb
-                    loop .get_1char
+                    jmp get_1char
                     
-.end:               mov rsi, Str_buf            ; string adr
-                    call Strlen                 ; rdx = string length
-                    mov rax, 0x01               ; write64 (rdi, rsi, rdx) ... r10, r8, r9
-                    mov rdi, 1                  ; stdout
+end:                mov rsi, Str_buf                ; string adr
+                    call Strlen                     ; rdx = string length
+                    mov rax, 0x01                   ; write64 (rdi, rsi, rdx) ... r10, r8, r9
+                    mov rdi, 1                      ; stdout
                     syscall
 
+                    pop rbp
                     pop_ rdi, rsi
                     ret
+
+specifier_handle:   inc rsi                         ; rsi -> specifier (char after "%")
+                    mov bl, [rsi]
+                    inc rsi                         ; skip specifier 
+
+                    sub bl, 'b' 
+                    jl case_default
+                    cmp bl, 1
+                    ja case_default
+
+                    jmp [Jmp_table + rbx * 8]       ; jump to appropriate case
+
+;                   === CASES ===
+case_c:             mov rax, [rbp + 16 + rcx * 8]   ; get next argument
+                    stosb
+                    jmp get_1char
+
+case_default:       jmp get_1char                   ; continue reading
+
 
 ;                   STRLEN
 ;------------------------------------------------------------------------------------------------------------------
@@ -82,5 +108,7 @@ Strlen:             push rsi
 
 section .data
 
-Str_buf             db 50 dup(0)
-String:             db "Hello world!", 0
+Jmp_table:          dq case_default
+                    dq case_c
+Str_buf             db 100 dup(0)
+String:             db "Hello world!%c", 0
