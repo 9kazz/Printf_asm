@@ -20,7 +20,7 @@ global _start                                   ; entry point name for ld
             
 ;==================================================================================================================                    
 _start:             mov rsi, String
-                    push 0x0
+                    push 93
                     call Printf
                     pop rax
 
@@ -43,17 +43,17 @@ Printf:             push rbp
                     push_ rsi, rdi
 
                     mov rdi, Str_buf
-                    xor rcx, rcx                ; arguments counter
+                    xor rcx, rcx                    ; arguments counter
 
 get_1char:          cmp byte [rsi], 0
-                        je end
+                        je end_printf
                     cmp byte [rsi], '%'
                         je Specifier_handle
                     lodsb 
                     stosb
                     jmp get_1char
                     
-end:                mov rsi, Str_buf                ; string adr
+end_printf:         mov rsi, Str_buf                ; string adr
                     call Strlen                     ; rdx = string length
                     mov rax, 0x01                   ; write64 (rdi, rsi, rdx) ... r10, r8, r9
                     mov rdi, 1                      ; stdout
@@ -80,7 +80,7 @@ case_c:             mov rax, [rbp + 16 + rcx * 8]   ; get next argument
                     jmp get_1char
 
 case_x:             mov rdx, [rbp + 16 + rcx * 8]   ; get next argument
-                    mov rbx, 16
+                    mov rbx, 2
                     call Itoa_xob
                     jmp get_1char
 case_default:       jmp get_1char                   ; continue reading
@@ -123,17 +123,39 @@ Strlen:             push rsi
 
 Itoa_xob:           push_ rbx, rcx, rdx
 
-                    dec rbx                         ; bit-mask
+                    test rdx, rdx                   ; check if number is zero
+                    jnz .check_system8
+                    xor al, al
+                    stosb
+                    jmp .end
+
+.check_system8:     cmp rbx, 8
+                    jne .itoa
+                    test rdx, 1<<63
+                    jz .align8
+                    mov al, 1
+                    stosb
+    .align8:        shl rdx, 1
+
+.itoa:              dec rbx                         ; bit-mask
                     mov rax, rbx                    ; copy mask
                     xor cx, cx                      ; cl = bits in the one digit of appropriate digit system
-                                                    ; ch = cur count of handled bits
+                             
 .get_shift:         inc cl
                     shr rax, 1
                     jnz .get_shift
 
+                    ror rbx, cl                     ; new bit-mask
+
+.del_lead_0:        test rdx, rbx
+                    jnz .get_digit
+                    shl rdx, cl
+                    jmp .del_lead_0
+
 .get_digit:         mov rax, rdx                    ; copy number
-                    shr rdx, cl
-                    or rax, rbx
+                    shl rdx, cl
+                    and rax, rbx
+                    rol rax, cl
 
                     cmp rax, 9
                     ja .trans2letter
@@ -141,11 +163,10 @@ Itoa_xob:           push_ rbx, rcx, rdx
     .trans2digit:   add rax, '0'                    ; rax = ASCII digit
     .end_of_cycle:  stosb                           ; store ASKII in buffer
 
-                    add ch, cl
-                    cmp ch, 64
-                    jb .get_digit
+                    test rdx, rdx
+                    jnz .get_digit
 
-                    pop_ rdx, rcx, rbx
+.end:               pop_ rdx, rcx, rbx
                     ret
 
     .trans2letter:  add rax, 'A' - 10
