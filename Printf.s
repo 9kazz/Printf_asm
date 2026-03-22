@@ -20,7 +20,7 @@ global _start                                   ; entry point name for ld
             
 ;==================================================================================================================                    
 _start:             mov rsi, String
-                    push 'A'
+                    push 0x0
                     call Printf
                     pop rax
 
@@ -48,7 +48,7 @@ Printf:             push rbp
 get_1char:          cmp byte [rsi], 0
                         je end
                     cmp byte [rsi], '%'
-                        je specifier_handle
+                        je Specifier_handle
                     lodsb 
                     stosb
                     jmp get_1char
@@ -63,13 +63,13 @@ end:                mov rsi, Str_buf                ; string adr
                     pop_ rdi, rsi
                     ret
 
-specifier_handle:   inc rsi                         ; rsi -> specifier (char after "%")
+Specifier_handle:   inc rsi                         ; rsi -> specifier (char after "%")
                     mov bl, [rsi]
                     inc rsi                         ; skip specifier 
 
                     sub bl, 'b' 
                     jl case_default
-                    cmp bl, 1
+                    cmp bl, 2
                     ja case_default
 
                     jmp [Jmp_table + rbx * 8]       ; jump to appropriate case
@@ -79,6 +79,10 @@ case_c:             mov rax, [rbp + 16 + rcx * 8]   ; get next argument
                     stosb
                     jmp get_1char
 
+case_x:             mov rdx, [rbp + 16 + rcx * 8]   ; get next argument
+                    mov rbx, 16
+                    call Itoa_xob
+                    jmp get_1char
 case_default:       jmp get_1char                   ; continue reading
 
 
@@ -106,9 +110,53 @@ Strlen:             push rsi
                     pop rsi
                     ret
 
+;                   ITOA_XOB
+;------------------------------------------------------------------------------------------------------------------
+; Descr:    convert number into other number system (16-, 8- or 2-bit only) and store it as a string
+; Entry:    rdx == number to convert
+;           rbx == number system
+;           rdi -> buffer for saving the string
+; Exit:     rdi -> 1st byte in buffer after saved number
+; Exp:      --
+; Destr:    --
+;------------------------------------------------------------------------------------------------------------------
+
+Itoa_xob:           push_ rbx, rcx, rdx
+
+                    dec rbx                         ; bit-mask
+                    mov rax, rbx                    ; copy mask
+                    xor cx, cx                      ; cl = bits in the one digit of appropriate digit system
+                                                    ; ch = cur count of handled bits
+.get_shift:         inc cl
+                    shr rax, 1
+                    jnz .get_shift
+
+.get_digit:         mov rax, rdx                    ; copy number
+                    shr rdx, cl
+                    or rax, rbx
+
+                    cmp rax, 9
+                    ja .trans2letter
+
+    .trans2digit:   add rax, '0'                    ; rax = ASCII digit
+    .end_of_cycle:  stosb                           ; store ASKII in buffer
+
+                    add ch, cl
+                    cmp ch, 64
+                    jb .get_digit
+
+                    pop_ rdx, rcx, rbx
+                    ret
+
+    .trans2letter:  add rax, 'A' - 10
+                    jmp .end_of_cycle               ; rax = ASKII letter
+
+
+
 section .data
 
 Jmp_table:          dq case_default
                     dq case_c
+                    dq case_x
 Str_buf             db 100 dup(0)
-String:             db "Hello world!%c", 0
+String:             db "Hello world!%d", 0
