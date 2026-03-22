@@ -81,7 +81,7 @@ case_c:             mov rax, [rbp + 16 + rcx * 8]   ; get next argument
 
 case_x:             mov rdx, [rbp + 16 + rcx * 8]   ; get next argument
                     mov rbx, 2
-                    call Itoa_xob
+                    call Itoa_d
                     jmp get_1char
 case_default:       jmp get_1char                   ; continue reading
 
@@ -172,10 +172,44 @@ Itoa_xob:           push_ rbx, rcx, rdx
     .trans2letter:  add rax, 'A' - 10
                     jmp .end_of_cycle               ; rax = ASKII letter
 
+;                   ITOA_D
+;------------------------------------------------------------------------------------------------------------------
+; Descr:    convert number into other number system (16-, 8- or 2-bit only) and store it as a string
+; Entry:    rax == number to convert
+;           rdi -> buffer for saving the string
+; Exit:     rdi -> 1st byte in buffer after saved number
+; Exp:      Temp_num_buf ;TODO
+; Destr:    --
+;------------------------------------------------------------------------------------------------------------------
+Itoa_d:             push_ rbx, rcx, rdx, rsi
+
+                    mov rbx, 10
+                    mov rsi, Temp_num_buf
+                    mov rcx, rsi
+
+.get_digit:         div rbx
+                    mov [rsi], dl
+                    test rax, rax
+                    jz .print_buf
+                    inc rsi
+                    jmp .get_digit
+
+.print_buf:         mov al, [rsi]
+                    dec rsi
+                    stosb
+                    cmp rsi, rcx
+                    jne .print_buf
+
+                    pop_ rsi, rdx, rcx, rbx
+                    ret
+
+
+
 
 
 section .data
 
+Temp_num_buf        db 20 dup(0)
 Jmp_table:          dq case_default
                     dq case_c
                     dq case_x
