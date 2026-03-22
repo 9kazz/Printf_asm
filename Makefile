@@ -9,11 +9,11 @@ LST = $(FILE).lst
 all: $(TARGET)
 
 $(TARGET): Printf.o
-	ld -s -m elf_i386 -o $(TARGET) $(OBJ)
+	ld -s -o $(TARGET) $(OBJ)
 	@echo -----------------------------------------------------------------------
 
 Printf.o: Printf.s
-	nasm -f elf -l $(LST) -o $(OBJ) $(SRC)
+	nasm -f elf64 -l $(LST) -o $(OBJ) $(SRC)
 	@echo -----------------------------------------------------------------------
 
 clean:
