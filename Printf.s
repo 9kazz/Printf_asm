@@ -17,6 +17,15 @@ global _start                                   ; entry point name for ld
                         %rotate 1
                     %endrep    
 %endmacro
+
+%macro Dump_Str_buf 0
+                    mov rsi, Str_buf                ; string adr
+                    mov rdx, rdi                    ; rdx = string length
+                    sub rdx, Str_buf
+                    mov rax, 0x01                   ; write64 (rdi, rsi, rdx) ... r10, r8, r9
+                    mov rdi, 1                      ; stdout
+                    syscall
+%endmacro                    
             
 ;==================================================================================================================                    
 _start:             mov rsi, String
@@ -47,6 +56,13 @@ Printf:             push rbp
                     mov rdi, Str_buf
                     xor rcx, rcx                    ; arguments counter
 
+check_buf_size:     cmp rdi, Str_buf + Str_buf_size
+                        jb get_char
+                    push rsi
+                    Dump_Str_buf
+                    pop rsi
+                    mov rdi, Str_buf
+
 get_char:           cmp byte [rsi], 0
                         je end_printf
                     cmp byte [rsi], '%'
@@ -55,12 +71,7 @@ get_char:           cmp byte [rsi], 0
                     stosb
                     jmp get_char
                     
-end_printf:         mov rsi, Str_buf                ; string adr
-                    call Strlen                     ; rdx = string length
-                    mov rax, 0x01                   ; write64 (rdi, rsi, rdx) ... r10, r8, r9
-                    mov rdi, 1                      ; stdout
-                    syscall
-
+end_printf:         Dump_Str_buf
                     pop rbp
                     pop_ rdi, rsi
                     ret
@@ -111,31 +122,6 @@ case_percent:       mov al, '%'
                     jmp get_char
 
 case_default:       jmp get_char                   ; continue reading
-
-
-;                   STRLEN
-;------------------------------------------------------------------------------------------------------------------
-; Descr:    returns length of the string terminated by ASCII 0 byte
-; Entry:    rsi -> string
-; Exit:     rdx == string length
-; Exp:      --
-; Destr:    --
-;------------------------------------------------------------------------------------------------------------------
-
-Strlen:             push rsi
-
-                    mov rdx, rsi
-
-.check_1char:       cmp byte [rsi], 0
-                        je .end
-                    inc rsi
-                    jmp .check_1char
-
-.end:               sub rsi, rdx
-                    mov rdx, rsi
-
-                    pop rsi
-                    ret
 
 ;                   ITOA_XOB
 ;------------------------------------------------------------------------------------------------------------------
@@ -208,11 +194,10 @@ Itoa_xob:           push_ rbx, rcx, rdx
 ; Exp:      Temp_num_buf ;TODO
 ; Destr:    --
 ;------------------------------------------------------------------------------------------------------------------
-Itoa_d:             push_ rbx, rcx, rdx, rsi
+Itoa_d:             push_ rbx, rdx, rsi
 
                     mov rbx, 10
                     mov rsi, Temp_num_buf
-                    mov rcx, rsi
 
 .get_digit:         xor rdx, rdx
                     div rbx
@@ -226,10 +211,10 @@ Itoa_d:             push_ rbx, rcx, rdx, rsi
 .print_buf:         mov al, [rsi]
                     dec rsi
                     stosb
-                    cmp rsi, rcx
+                    cmp rsi, Temp_num_buf
                     jae .print_buf
 
-                    pop_ rsi, rdx, rcx, rbx
+                    pop_ rsi, rdx, rbx
                     ret
 
 ;                   DISPLAY_STR
@@ -263,6 +248,8 @@ Jmp_table:          dq case_b
                     dq case_s                         
                     dq 'x' - 's' - 1 dup(case_default)                                   
                     dq case_x
-Str_buf             db 100 dup(0)
+
+Str_buf_size        equ 100                    
+Str_buf             db Str_buf_size dup(0)
 String:             db "Hello world!(%d)(%x)(%s)%%%%%%", 0
 String1:             db "777", 0
