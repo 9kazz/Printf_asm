@@ -20,9 +20,11 @@ global _start                                   ; entry point name for ld
             
 ;==================================================================================================================                    
 _start:             mov rsi, String
-                    push 93
+                    push String1
+                    push 0x222
+                    push 111
                     call Printf
-                    pop rax
+                    pop_ rax, rax, rax
 
                     mov rax, 0x3C      ; exit64 (rdi)
                     xor rdi, rdi
@@ -45,13 +47,13 @@ Printf:             push rbp
                     mov rdi, Str_buf
                     xor rcx, rcx                    ; arguments counter
 
-get_1char:          cmp byte [rsi], 0
+get_char:           cmp byte [rsi], 0
                         je end_printf
                     cmp byte [rsi], '%'
                         je Specifier_handle
                     lodsb 
                     stosb
-                    jmp get_1char
+                    jmp get_char
                     
 end_printf:         mov rsi, Str_buf                ; string adr
                     call Strlen                     ; rdx = string length
@@ -67,23 +69,48 @@ Specifier_handle:   inc rsi                         ; rsi -> specifier (char aft
                     mov bl, [rsi]
                     inc rsi                         ; skip specifier 
 
-                    sub bl, 'b' 
-                    jl case_default
-                    cmp bl, 2
-                    ja case_default
+                    cmp bl, '%' 
+                        je case_percent
 
+                    sub bl, 'b' 
+                        jl case_default
+                    cmp bl, 'x' - 'b'
+                        ja case_default
+
+                    inc rcx
                     jmp [Jmp_table + rbx * 8]       ; jump to appropriate case
 
 ;                   === CASES ===
-case_c:             mov rax, [rbp + 16 + rcx * 8]   ; get next argument
-                    stosb
-                    jmp get_1char
 
-case_x:             mov rdx, [rbp + 16 + rcx * 8]   ; get next argument
-                    mov rbx, 2
+case_x:             mov rbx, 16
+                        jmp case_xob
+case_o:             mov rbx, 8
+                        jmp case_xob
+case_b:             mov rbx, 2
+
+case_xob:           mov rdx, [rbp + 8 + rcx * 8]   ; get next argument                 
+                    call Itoa_xob                
+                    jmp get_char                    
+
+case_c:             mov rax, [rbp + 8 + rcx * 8]
+                    stosb
+                    jmp get_char
+
+case_d:             mov rax, [rbp + 8 + rcx * 8]
                     call Itoa_d
-                    jmp get_1char
-case_default:       jmp get_1char                   ; continue reading
+                    jmp get_char
+
+case_s:             push rsi
+                    mov rsi, [rbp + 8 + rcx * 8]   
+                    call Display_str
+                    pop rsi
+                    jmp get_char
+
+case_percent:       mov al, '%'       
+                    stosb
+                    jmp get_char
+
+case_default:       jmp get_char                   ; continue reading
 
 
 ;                   STRLEN
@@ -187,7 +214,9 @@ Itoa_d:             push_ rbx, rcx, rdx, rsi
                     mov rsi, Temp_num_buf
                     mov rcx, rsi
 
-.get_digit:         div rbx
+.get_digit:         xor rdx, rdx
+                    div rbx
+                    add dl, '0'
                     mov [rsi], dl
                     test rax, rax
                     jz .print_buf
@@ -198,20 +227,42 @@ Itoa_d:             push_ rbx, rcx, rdx, rsi
                     dec rsi
                     stosb
                     cmp rsi, rcx
-                    jne .print_buf
+                    jae .print_buf
 
                     pop_ rsi, rdx, rcx, rbx
                     ret
 
+;                   DISPLAY_STR
+;------------------------------------------------------------------------------------------------------------------
+; Descr:    convert number into other number system (16-, 8- or 2-bit only) and store it as a string
+; Entry:    rsi -> string to display ending by terminate character \0
+;           rdi -> buffer for saving the string
+; Exit:     rdi -> 1st byte in buffer after saved number
+; Exp:      Temp_num_buf ;TODO
+; Destr:    al
+;------------------------------------------------------------------------------------------------------------------
+Display_str:        
+.get_char:          cmp byte [rsi], 0
+                        je .end
+                    lodsb 
+                    stosb
+                    jmp .get_char
 
+.end:               ret
 
-
-
+;=================  DATA  =========================================================================================                    
 section .data
 
 Temp_num_buf        db 20 dup(0)
-Jmp_table:          dq case_default
+Jmp_table:          dq case_b
                     dq case_c
+                    dq case_d
+                    dq 'o' - 'd' - 1 dup(case_default)
+                    dq case_o
+                    dq 's' - 'o' - 1 dup(case_default)
+                    dq case_s                         
+                    dq 'x' - 's' - 1 dup(case_default)                                   
                     dq case_x
 Str_buf             db 100 dup(0)
-String:             db "Hello world!%d", 0
+String:             db "Hello world!(%d)(%x)(%s)%%%%%%", 0
+String1:             db "777", 0
