@@ -1,6 +1,6 @@
 section .text
 
-global _start                                   ; entry point name for ld
+global my_printf                                    ; entry point name for ld
 
 ;=================  MACROSES  =====================================================================================                    
 
@@ -31,17 +31,8 @@ global _start                                   ; entry point name for ld
 %endmacro                    
             
 ;==================================================================================================================                    
-_start:             mov rdi, String
-                    mov rsi, 111
-                    mov rdx, 0x222
-                    mov rcx, String1
-                    call Printf
 
-                    mov rax, 0x3C      ; exit64 (rdi)
-                    xor rdi, rdi
-                    syscall
-
-;                   PRINTF
+;                   MY_PRINTF
 ;------------------------------------------------------------------------------------------------------------------
 ; Descr:
 ; Entry:    rsi -> printing string
@@ -50,7 +41,7 @@ _start:             mov rdi, String
 ; Destr:    rax
 ;------------------------------------------------------------------------------------------------------------------
 
-Printf:             push_ r9, r8, rcx, rdx, rsi, rdi
+my_printf:          push_ r9, r8, rcx, rdx, rsi, rdi
 
                     pop rsi                         ; get string adr 
 
@@ -271,5 +262,3 @@ Jmp_table:          dq case_b
 Str_buf_size        equ 128
 Extra_space         equ 32                          ; extra space to print numbers 
 Str_buf             db Str_buf_size + Extra_space dup(0)
-String:             db "Hello world!(%d)(%x)(%s)%%%%%%", 0
-String1:            db "777", 0

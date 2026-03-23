@@ -1,20 +1,23 @@
-FILE = Printf
-TARGET = $(FILE).exe
-OBJ = $(FILE).o
-SRC = $(FILE).s
-LST = $(FILE).lst
-
 .PHONY: all clean
 
-all: $(TARGET)
 
-$(TARGET): Printf.o
-	ld -s -o $(TARGET) $(OBJ)
+all: printf.exe
+
+printf.exe: printf.o
+	ld -s -o printf.exe printf.o
 	@echo -----------------------------------------------------------------------
 
-Printf.o: Printf.s
-	nasm -f elf64 -l $(LST) -o $(OBJ) $(SRC)
+printf.o: printf.s
+	nasm -f elf64 -l printf.lst -o printf.o printf.s
 	@echo -----------------------------------------------------------------------
+
+
+asminc: asminc.exe
+
+asminc.exe: printf.o test.c
+	gcc -no-pie printf.o test.c -o asminc.exe
+	@echo -----------------------------------------------------------------------
+	
 
 clean:
 	rm -f *.o *.lst *.exe
