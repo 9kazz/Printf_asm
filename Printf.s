@@ -94,12 +94,23 @@ Specifier_handle:   inc rsi                         ; rsi -> specifier (char aft
 ;                   === CASES ===
 
 case_x:             mov rbx, 16
-                        jmp case_xob
+                        jmp case_xo
 case_o:             mov rbx, 8
-                        jmp case_xob
-case_b:             mov rbx, 2
+                        jmp case_xo
+case_b:             mov rdx, [rbp + 8 + rcx * 8]   ; get next argument   
+                    cmp rdx, 1 << Extra_space + 1
+                        jb .continue_b
+                        
+                    push_ rsi, rdx
+                    Dump_Str_buf
+                    pop_ rdx, rsi
+                    mov rdi, Str_buf
+                                  
+    .continue_b:    mov rbx, 2
+                    call Itoa_xob                
+                    jmp check_buf_size
 
-case_xob:           mov rdx, [rbp + 8 + rcx * 8]   ; get next argument                 
+case_xo:            mov rdx, [rbp + 8 + rcx * 8]  
                     call Itoa_xob                
                     jmp check_buf_size
 
@@ -256,7 +267,8 @@ Jmp_table:          dq case_b
                     dq 'x' - 's' - 1 dup(case_default)                                   
                     dq case_x
 
-Str_buf_size        equ 100                    
-Str_buf             db Str_buf_size dup(0)
+Str_buf_size        equ 100  
+Extra_space         equ 22                          ; extra space to print numbers 
+Str_buf             db Str_buf_size + Extra_space dup(0)
 String:             db "Hello world!(%d)(%x)(%s)%%%%%%", 0
-String1:             db "777", 0
+String1:            db "777", 0
