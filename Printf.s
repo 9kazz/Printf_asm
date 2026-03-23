@@ -19,12 +19,15 @@ global _start                                   ; entry point name for ld
 %endmacro
 
 %macro Dump_Str_buf 0
+                    push_ rsi, rdx, rcx
                     mov rsi, Str_buf                ; string adr
-                    mov rdx, rdi                    ; rdx = string length
-                    sub rdx, Str_buf
+                    mov rdx, rdi                    
+                    sub rdx, Str_buf                ; rdx = string length
                     mov rax, 0x01                   ; write64 (rdi, rsi, rdx) ... r10, r8, r9
                     mov rdi, 1                      ; stdout
                     syscall
+                    pop_ rcx, rdx, rsi
+                    mov rdi, Str_buf
 %endmacro                    
             
 ;==================================================================================================================                    
@@ -58,10 +61,7 @@ Printf:             push rbp
 
 check_buf_size:     cmp rdi, Str_buf + Str_buf_size
                         jb get_char
-                    push rsi
                     Dump_Str_buf
-                    pop rsi
-                    mov rdi, Str_buf
 
 get_char:           cmp byte [rsi], 0
                         je end_printf
@@ -100,11 +100,7 @@ case_o:             mov rbx, 8
 case_b:             mov rdx, [rbp + 8 + rcx * 8]   ; get next argument   
                     cmp rdx, 1 << Extra_space + 1
                         jb .continue_b
-                        
-                    push_ rsi, rdx
                     Dump_Str_buf
-                    pop_ rdx, rsi
-                    mov rdi, Str_buf
                                   
     .continue_b:    mov rbx, 2
                     call Itoa_xob                
@@ -240,10 +236,7 @@ Itoa_d:             push_ rbx, rdx, rsi
 Display_str:        
 .check_buf_size:    cmp rdi, Str_buf + Str_buf_size
                         jb .get_char
-                    push rsi
                     Dump_Str_buf
-                    pop rsi
-                    mov rdi, Str_buf
 
 .get_char:          cmp byte [rsi], 0
                         je .end
@@ -267,7 +260,7 @@ Jmp_table:          dq case_b
                     dq 'x' - 's' - 1 dup(case_default)                                   
                     dq case_x
 
-Str_buf_size        equ 100  
+Str_buf_size        equ 100
 Extra_space         equ 22                          ; extra space to print numbers 
 Str_buf             db Str_buf_size + Extra_space dup(0)
 String:             db "Hello world!(%d)(%x)(%s)%%%%%%", 0
