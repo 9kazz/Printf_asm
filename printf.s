@@ -31,23 +31,25 @@ global my_printf                                    ; entry point name for ld
 %endmacro                    
             
 ;==================================================================================================================                    
-; global _start
-; _start: mov rdi, str
-;         mov rsi, -111
-;         mov rdx, 0b10101010
-;         call my_printf
 
-;         mov rax, 0x3C      ; exit64 (rdi)
-;         xor rdi, rdi
-;         syscall
-            
 ;                   MY_PRINTF
 ;------------------------------------------------------------------------------------------------------------------
-; Descr:
-; Entry:    rsi -> printing string
+; Descr:    print string into stdout according to format string (first argument).
+;           Acceptable specifiers:
+;           %b -- print number as binary
+;           %o -- print number as octal
+;           %d -- print number as decimal (only sign 32-bit numbers)
+;           %x -- print number as hexadecimal
+;           %c -- print character (according to ASCII conversation)
+;           %s -- print string terminated by /0
+;           %% -- print "%"
+; Entry:    variable count of arguments (format, 5 args in regisgters, others in the stack)
+;           rdi -> format string (must be the first argument)
+;           rsi, rdx, rcx, r8, r9 -- firth 5 arguments 
+;           other arguments in the stack
 ; Exit:     --
 ; Exp:      --
-; Destr:    rax
+; Destr:    --
 ;------------------------------------------------------------------------------------------------------------------
 
 my_printf:          push_ r9, r8, rcx, rdx, rsi, rdi
@@ -144,9 +146,9 @@ case_default:       jmp check_buf_size             ; continue reading
 ; Entry:    rdx == number to convert
 ;           rbx == number system
 ;           rdi -> buffer for saving the string
-; Exit:     rdi -> 1st byte in buffer after saved number
+; Exit:     rdi -> first byte in buffer after saved number
 ; Exp:      --
-; Destr:    --
+; Destr:    rax
 ;------------------------------------------------------------------------------------------------------------------
 
 Itoa_xob:           push_ rbx, rcx, rdx
@@ -207,12 +209,12 @@ Itoa_xob:           push_ rbx, rcx, rdx
 
 ;                   ITOA_D
 ;------------------------------------------------------------------------------------------------------------------
-; Descr:    convert number into other number system (16-, 8- or 2-bit only) and store it as a string
+; Descr:    convert number into decimal number system and store it as a string
 ; Entry:    rax == number to convert
 ;           rdi -> buffer for saving the string
-; Exit:     rdi -> 1st byte in buffer after saved number
-; Exp:      Temp_num_buf ;TODO
-; Destr:    --
+; Exit:     rdi -> first byte in buffer after saved number
+; Exp:      created Temp_num_buf (capacity not less than 20 bytes) to temporary saving and reversing number
+; Destr:    al
 ;------------------------------------------------------------------------------------------------------------------
 Itoa_d:             push_ rbx, rdx, rsi
 
@@ -248,11 +250,11 @@ Itoa_d:             push_ rbx, rdx, rsi
 
 ;                   DISPLAY_STR
 ;------------------------------------------------------------------------------------------------------------------
-; Descr:    convert number into other number system (16-, 8- or 2-bit only) and store it as a string
-; Entry:    rsi -> string to display ending by terminate character \0
+; Descr:    store string in Str_buf
+; Entry:    rsi -> string to store ending by terminate character \0
 ;           rdi -> buffer for saving the string
-; Exit:     rdi -> 1st byte in buffer after saved number
-; Exp:      Temp_num_buf ;TODO
+; Exit:     rdi -> first byte in buffer after saved number
+; Exp:      --
 ; Destr:    al
 ;------------------------------------------------------------------------------------------------------------------
 Display_str:        
@@ -285,5 +287,3 @@ Jmp_table:          dq case_b
 Str_buf_size        equ 128
 Extra_space         equ 32                          ; extra space to print numbers 
 Str_buf             db Str_buf_size + Extra_space dup(0)
-
-; str:                 db "hello world!(%d)(%b)", 0
