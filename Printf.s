@@ -69,7 +69,7 @@ get_char:           cmp byte [rsi], 0
                         je Specifier_handle
                     lodsb 
                     stosb
-                    jmp get_char
+                    jmp check_buf_size
                     
 end_printf:         Dump_Str_buf
                     pop rbp
@@ -101,27 +101,27 @@ case_b:             mov rbx, 2
 
 case_xob:           mov rdx, [rbp + 8 + rcx * 8]   ; get next argument                 
                     call Itoa_xob                
-                    jmp get_char                    
+                    jmp check_buf_size
 
 case_c:             mov rax, [rbp + 8 + rcx * 8]
                     stosb
-                    jmp get_char
+                    jmp check_buf_size
 
 case_d:             mov rax, [rbp + 8 + rcx * 8]
                     call Itoa_d
-                    jmp get_char
+                    jmp check_buf_size
 
 case_s:             push rsi
                     mov rsi, [rbp + 8 + rcx * 8]   
                     call Display_str
                     pop rsi
-                    jmp get_char
+                    jmp check_buf_size
 
 case_percent:       mov al, '%'       
                     stosb
-                    jmp get_char
+                    jmp check_buf_size
 
-case_default:       jmp get_char                   ; continue reading
+case_default:       jmp check_buf_size             ; continue reading
 
 ;                   ITOA_XOB
 ;------------------------------------------------------------------------------------------------------------------
@@ -227,11 +227,18 @@ Itoa_d:             push_ rbx, rdx, rsi
 ; Destr:    al
 ;------------------------------------------------------------------------------------------------------------------
 Display_str:        
+.check_buf_size:    cmp rdi, Str_buf + Str_buf_size
+                        jb .get_char
+                    push rsi
+                    Dump_Str_buf
+                    pop rsi
+                    mov rdi, Str_buf
+
 .get_char:          cmp byte [rsi], 0
                         je .end
                     lodsb 
                     stosb
-                    jmp .get_char
+                    jmp .check_buf_size
 
 .end:               ret
 
