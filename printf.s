@@ -31,7 +31,16 @@ global my_printf                                    ; entry point name for ld
 %endmacro                    
             
 ;==================================================================================================================                    
+; global _start
+; _start: mov rdi, str
+;         mov rsi, -111
+;         mov rdx, 0b10101010
+;         call my_printf
 
+;         mov rax, 0x3C      ; exit64 (rdi)
+;         xor rdi, rdi
+;         syscall
+            
 ;                   MY_PRINTF
 ;------------------------------------------------------------------------------------------------------------------
 ; Descr:
@@ -113,7 +122,7 @@ case_c:             mov rax, [rbp + rcx * 8]
                     stosb
                     jmp check_buf_size
 
-case_d:             mov rax, [rbp + rcx * 8]
+case_d:             mov eax, [rbp + rcx * 8]
                     call Itoa_d
                     jmp check_buf_size
 
@@ -142,48 +151,53 @@ case_default:       jmp check_buf_size             ; continue reading
 
 Itoa_xob:           push_ rbx, rcx, rdx
 
+                    xor cl, cl                      ; cl = bits in the one digit of appropriate digit system
+                    mov ch, 64                      ; ch = bit counter
+
                     test rdx, rdx                   ; check if number is zero
-                    jnz .check_system8
+                        jnz .check_system8
                     xor al, al
                     stosb
                     jmp .end
 
 .check_system8:     cmp rbx, 8
-                    jne .itoa
+                        jne .itoa
                     test rdx, 1<<63
-                    jz .align8
+                        jz .align8
                     mov al, 1
                     stosb
     .align8:        shl rdx, 1
+                    dec ch
 
 .itoa:              dec rbx                         ; bit-mask
                     mov rax, rbx                    ; copy mask
-                    xor cx, cx                      ; cl = bits in the one digit of appropriate digit system
-                             
+
 .get_shift:         inc cl
                     shr rax, 1
-                    jnz .get_shift
+                        jnz .get_shift
 
                     ror rbx, cl                     ; new bit-mask
 
 .del_lead_0:        test rdx, rbx
-                    jnz .get_digit
+                        jnz .get_digit
                     shl rdx, cl
+                    sub ch, cl
                     jmp .del_lead_0
 
 .get_digit:         mov rax, rdx                    ; copy number
                     shl rdx, cl
+                    sub ch, cl
                     and rax, rbx
                     rol rax, cl
 
                     cmp rax, 9
-                    ja .trans2letter
+                        ja .trans2letter
 
     .trans2digit:   add rax, '0'                    ; rax = ASCII digit
     .end_of_cycle:  stosb                           ; store ASKII in buffer
 
-                    test rdx, rdx
-                    jnz .get_digit
+                    test ch, ch
+                        jnz .get_digit
 
 .end:               pop_ rdx, rcx, rbx
                     ret
@@ -202,15 +216,24 @@ Itoa_xob:           push_ rbx, rcx, rdx
 ;------------------------------------------------------------------------------------------------------------------
 Itoa_d:             push_ rbx, rdx, rsi
 
-                    mov rbx, 10
+                    mov ebx, 10
                     mov rsi, Temp_num_buf
 
-.get_digit:         xor rdx, rdx
-                    div rbx
+                    cmp eax, 0                      ; check sign bit
+                        jns .get_digit
+                    mov dl, '-'
+                    mov [rdi], dl
+                    inc rdi
+
+                    neg rax
+                    
+
+.get_digit:         xor edx, edx
+                    div ebx
                     add dl, '0'
                     mov [rsi], dl
-                    test rax, rax
-                    jz .print_buf
+                    test eax, eax
+                        jz .print_buf
                     inc rsi
                     jmp .get_digit
 
@@ -262,3 +285,5 @@ Jmp_table:          dq case_b
 Str_buf_size        equ 128
 Extra_space         equ 32                          ; extra space to print numbers 
 Str_buf             db Str_buf_size + Extra_space dup(0)
+
+; str:                 db "hello world!(%d)(%b)", 0
