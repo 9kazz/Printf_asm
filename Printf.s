@@ -31,12 +31,11 @@ global _start                                   ; entry point name for ld
 %endmacro                    
             
 ;==================================================================================================================                    
-_start:             mov rsi, String
-                    push String1
-                    push 0x222
-                    push 111
+_start:             mov rdi, String
+                    mov rsi, 111
+                    mov rdx, 0x222
+                    mov rcx, String1
                     call Printf
-                    pop_ rax, rax, rax
 
                     mov rax, 0x3C      ; exit64 (rdi)
                     xor rdi, rdi
@@ -51,10 +50,14 @@ _start:             mov rsi, String
 ; Destr:    rax
 ;------------------------------------------------------------------------------------------------------------------
 
-Printf:             push rbp
+Printf:             push_ r9, r8, rcx, rdx, rsi, rdi
+
+                    pop rsi                         ; get string adr 
+
+                    push rbp
                     mov rbp, rsp
 
-                    push_ rsi, rdi
+                    push_ rdi, rax                  ; save registers
 
                     mov rdi, Str_buf
                     xor rcx, rcx                    ; arguments counter
@@ -72,8 +75,9 @@ get_char:           cmp byte [rsi], 0
                     jmp check_buf_size
                     
 end_printf:         Dump_Str_buf
+                    pop_ rax, rdi                   ; recover saved registers
                     pop rbp
-                    pop_ rdi, rsi
+                    pop_ rsi, rdx, rcx, r8, r9
                     ret
 
 Specifier_handle:   inc rsi                         ; rsi -> specifier (char after "%")
@@ -89,7 +93,11 @@ Specifier_handle:   inc rsi                         ; rsi -> specifier (char aft
                         ja case_default
 
                     inc rcx
-                    jmp [Jmp_table + rbx * 8]       ; jump to appropriate case
+                    cmp rcx, 6                      ; according to Stdcall, first 6 arguments saved in registers
+                        jne .skip_return_adr
+                    inc rcx
+                    
+.skip_return_adr:   jmp [Jmp_table + rbx * 8]       ; jump to appropriate case
 
 ;                   === CASES ===
 
@@ -97,7 +105,7 @@ case_x:             mov rbx, 16
                         jmp case_xo
 case_o:             mov rbx, 8
                         jmp case_xo
-case_b:             mov rdx, [rbp + 8 + rcx * 8]   ; get next argument   
+case_b:             mov rdx, [rbp + rcx * 8]   ; get next argument   
                     cmp rdx, 1 << Extra_space + 1
                         jb .continue_b
                     Dump_Str_buf
@@ -106,20 +114,20 @@ case_b:             mov rdx, [rbp + 8 + rcx * 8]   ; get next argument
                     call Itoa_xob                
                     jmp check_buf_size
 
-case_xo:            mov rdx, [rbp + 8 + rcx * 8]  
+case_xo:            mov rdx, [rbp + rcx * 8]  
                     call Itoa_xob                
                     jmp check_buf_size
 
-case_c:             mov rax, [rbp + 8 + rcx * 8]
+case_c:             mov rax, [rbp + rcx * 8]
                     stosb
                     jmp check_buf_size
 
-case_d:             mov rax, [rbp + 8 + rcx * 8]
+case_d:             mov rax, [rbp + rcx * 8]
                     call Itoa_d
                     jmp check_buf_size
 
 case_s:             push rsi
-                    mov rsi, [rbp + 8 + rcx * 8]   
+                    mov rsi, [rbp + rcx * 8]   
                     call Display_str
                     pop rsi
                     jmp check_buf_size
@@ -260,8 +268,8 @@ Jmp_table:          dq case_b
                     dq 'x' - 's' - 1 dup(case_default)                                   
                     dq case_x
 
-Str_buf_size        equ 100
-Extra_space         equ 22                          ; extra space to print numbers 
+Str_buf_size        equ 128
+Extra_space         equ 32                          ; extra space to print numbers 
 Str_buf             db Str_buf_size + Extra_space dup(0)
 String:             db "Hello world!(%d)(%x)(%s)%%%%%%", 0
 String1:            db "777", 0
