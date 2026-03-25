@@ -158,7 +158,7 @@ Itoa_xob:           push_ rbx, rcx, rdx
 
                     test rdx, rdx                   ; check if number is zero
                         jnz .check_system8
-                    xor al, al
+                    mov al, '0'
                     stosb
                     jmp .end
 
