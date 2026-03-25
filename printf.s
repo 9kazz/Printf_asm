@@ -51,6 +51,8 @@ global my_printf
 ; Exit:     --
 ; Exp:      --
 ; Destr:    rax
+; Note:     return address is poped from the stack and saved in the memory (label: Return_adr). 
+;           It`s necessary for using std printf. In the opposite case, std printf gets return address as its argument
 ;------------------------------------------------------------------------------------------------------------------
 
 my_printf:          POP rax                         ; POP RETURN ADDRESS BECAUSE PRINTF (from "stdio.h") GET IT AS ARGUMENT
