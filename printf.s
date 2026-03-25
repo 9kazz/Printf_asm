@@ -282,7 +282,6 @@ Itoa_d:             push_ rbx, rdx, rsi
 
                     neg rax
                     
-
 .get_digit:         xor edx, edx
                     div ebx
                     add dl, '0'
@@ -334,7 +333,41 @@ Display_str:
 ;------------------------------------------------------------------------------------------------------------------
 Itoa_f:             push_ rcx, rax
 
-.get_digit:         cvttsd2si rax, xmm8              ; floored number
+;                     movq rax, xmm8
+;                     test rax, rax
+;                         jns .positive_num
+;                     mov al, '$'
+;                     stosb
+;                     ; and rax, 0x7FFFFFFFFFFFFFFF      ; make number positive
+;                     and rax, 0x123456789ABCDEF      ; make number positive
+;                     movq xmm8, rax
+
+; .positive_num:      cvttsd2si rax, xmm8              ; floored number
+
+; .get_int_digit:     cvtsi2sd xmm9, rax               ; int number stored as double
+;                     call Itoa_d
+                    
+;                     mov al, '.'
+;                     stosb
+
+;                     subsd xmm8, xmm9                 ; fractial part
+
+;                     mov rax, 10
+;                     cvtsi2sd xmm9, rax
+
+;                     xor rcx, rcx
+;                     mov cl, dl
+
+; .get_frac_digit:    mulsd xmm8, xmm9
+;                     loop .get_frac_digit
+
+;                     cvtsd2si rax, xmm8              ; rounded to nearest number
+
+;                     call Itoa_d
+
+.get_digit:         movq rax, xmm8
+
+                    cvttsd2si rax, xmm8              ; floored number
                     cvtsi2sd xmm9, rax               ; int number stored as double
                     call Itoa_d
                     
@@ -350,11 +383,22 @@ Itoa_f:             push_ rcx, rax
                     mov cl, dl
 
 .get_frac_digit:    mulsd xmm8, xmm9
-                    loop .get_frac_digit
 
-                    cvtsd2si rax, xmm8              ; rounded to nearest number
+                    cvttsd2si rax, xmm8
+                    test rax, rax
+                        jnz .continue
+                    mov al, '0'
+                    stosb
+
+    .continue:      loop .get_frac_digit
+
+                    cvtsd2si rax, xmm8               ; rounded to nearest number
+
+                    test rax, rax
+                        jns .print_frac
                     neg rax
-                    call Itoa_d
+
+.print_frac:        call Itoa_d
 
                     pop_ rax, rcx
                     ret
