@@ -15,8 +15,9 @@ int main()
     printf("====================================================================\n");
     printf("1 message from MY_PRINTF | 2 message from STD PRINTF:\n\n");
     
+    // printf("%.2f\n", dub_num);
     // my_printf("HELLO WORLD!\n(%b) (%b) (%d) (%o) (%x) (%s) (%%%%%%%%%%) (%f)\n\n", zero, bin_num, dec_num, oct_num, hex_num, test_str, dub_num);
-my_printf("%f\n", dub_num);
+my_printf("%.2f\n", dub_num);
     printf("====================================================================\n");
 
     return 0;

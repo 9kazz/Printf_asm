@@ -39,7 +39,7 @@ global my_printf
 %macro STORE_XMM 0-*
                     %assign offset 0
                     %rep %0
-                        movsd [xmm_vec + offset], %1
+                        movsd [Xmm_vec + offset], %1
                         %assign offset offset + 8
                         %rotate 1
                     %endrep
@@ -75,7 +75,7 @@ my_printf:          POP rax                         ; POP RETURN ADDRESS BECAUSE
                     push_ r9, r8, rcx, rdx, rsi, rdi                    
 
                     STORE_XMM from0to7
-                    xor r15, r15                    ; xmm_vec counter
+                    Xor r15, r15                    ; Xmm_vec counter
 
                     pop rsi                         ; get string adr 
                     mov [Format_adr], rsi           ; save format address to use as argument fo printf ("stdio.h")
@@ -121,6 +121,8 @@ Specifier_handle:   inc rsi                         ; rsi -> specifier (char aft
 
                     cmp bl, '%' 
                         je case_percent
+                    cmp bl, '.'
+                        je case_precision
 
                     sub bl, 'b' 
                         jl case_default
@@ -129,7 +131,7 @@ Specifier_handle:   inc rsi                         ; rsi -> specifier (char aft
 
                     inc rcx
                     
-.skip_return_adr:   jmp [Jmp_table + rbx * 8]       ; jump to appropriate case
+                    jmp [Jmp_table + rbx * 8]       ; jump to appropriate case
 
 ;                   === CASES ===
 
@@ -137,7 +139,7 @@ case_x:             mov rbx, 16
                         jmp case_xo
 case_o:             mov rbx, 8
                         jmp case_xo
-case_b:             mov rdx, [rbp + rcx * 8]   ; get next argument   
+case_b:             mov rdx, [rbp + rcx * 8]        ; get next argument   
                     cmp rdx, 1 << Extra_space + 1
                         jb .continue_b
                     DUMP_STR_BUF
@@ -164,14 +166,23 @@ case_s:             push rsi
                     pop rsi
                     jmp check_buf_size
 
-case_f:             cmp r15, 8
+case_precision:     lodsb                   
+                    sub al, '0'
+                    mov dl, al                      ; dl = precision
+                    lodsb
+                    cmp al, 'f'
+                        jne case_default    
+                    jmp case_f_start
+case_f:             mov dl, 6                       ; set precision by default
+
+    case_f_start:   cmp r15, 8
                         jb .take_arg_vec
 
                     mov rax, [rbp + rcx * 8]
                     cvtsi2sd xmm8, rax
                     jmp .printf_double
 
-    .take_arg_vec:  movsd xmm8, [xmm_vec + 8 * r15]
+    .take_arg_vec:  movsd xmm8, [Xmm_vec + 8 * r15]
                     inc r15
 
     .printf_double: call Itoa_f
@@ -316,28 +327,12 @@ Display_str:
 ;------------------------------------------------------------------------------------------------------------------
 ; Descr:    
 ; Entry:    xmm8 == number to convert
-;           
+;           dl   == count of digits in fractial part
 ; Exit:     
 ; Exp:      
 ; Destr:    
 ;------------------------------------------------------------------------------------------------------------------
 Itoa_f:             push_ rcx, rax
-
-                    ; movsd rcx, xmm8
-                    ; cmp rcx, 0                      ; check sign bit
-                    ;     jns .get_digit
-                    ; mov al, '-'
-                    ; stosb
-
-                    ; neg rcx
-                    ; movsd xmm8, rcx
-                                        
-
-; .get_mantissa:      movsd xmm9, xmm8
-;                     andsd xmm9, ~0 >> (64 - 52)
-
-; .get_exponent:      ands xmm8, 0x7FF << 52
-
 
 .get_digit:         cvttsd2si rax, xmm8              ; floored number
                     cvtsi2sd xmm9, rax               ; int number stored as double
@@ -351,7 +346,9 @@ Itoa_f:             push_ rcx, rax
                     mov rax, 10
                     cvtsi2sd xmm9, rax
 
-                    mov rcx, 6
+                    xor rcx, rcx
+                    mov cl, dl
+
 .get_frac_digit:    mulsd xmm8, xmm9
                     loop .get_frac_digit
 
@@ -370,7 +367,10 @@ Return_adr          dq 0
 Format_adr          dq 0
 Temp_num_buf        db 20 dup(0)
 
-xmm_vec             dq 8 dup(0)
+Stk_cnt             db 0
+Xmm_cnt             db 0
+
+Xmm_vec             dq 8 dup(0)
 Jmp_table:          dq case_b
                     dq case_c
                     dq case_d
