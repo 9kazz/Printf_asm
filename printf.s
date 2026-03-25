@@ -1,6 +1,7 @@
 section .text
 
-global my_printf                                    ; entry point name for ld
+extern printf
+global my_printf  
 
 ;=================  MACROSES  =====================================================================================                    
 
@@ -49,17 +50,21 @@ global my_printf                                    ; entry point name for ld
 ;           other arguments in the stack
 ; Exit:     --
 ; Exp:      --
-; Destr:    --
+; Destr:    rax
 ;------------------------------------------------------------------------------------------------------------------
 
-my_printf:          push_ r9, r8, rcx, rdx, rsi, rdi
+my_printf:          POP rax                         ; POP RETURN ADDRESS BECAUSE PRINTF (from "stdio.h") GET IT AS ARGUMENT
+                    mov [Return_adr], rax           ; SAVE RETURN ADDRESS IN THE MEMORY 
+
+                    push_ r9, r8, rcx, rdx, rsi, rdi
 
                     pop rsi                         ; get string adr 
+                    mov [Format_adr], rsi           ; save format address to use as argument fo printf ("stdio.h")
 
                     push rbp
                     mov rbp, rsp
 
-                    push_ rdi, rax                  ; save registers
+                    push rdi                        ; save register
 
                     mov rdi, Str_buf
                     xor rcx, rcx                    ; arguments counter
@@ -77,10 +82,19 @@ get_char:           cmp byte [rsi], 0
                     jmp check_buf_size
                     
 end_printf:         Dump_Str_buf
-                    pop_ rax, rdi                   ; recover saved registers
+                    pop rdi                         ; recover saved register
                     pop rbp
+
                     pop_ rsi, rdx, rcx, r8, r9
+                    mov rdi, [Format_adr]
+
+                    CALL printf                     ; call std printf
+
+                    mov rax, [Return_adr]
+                    PUSH rax                        ; RECOVER RETURN ADDRESS FROM THE MEMORY
                     ret
+
+;------------------------------------------------------------------------------------------------------------------
 
 Specifier_handle:   inc rsi                         ; rsi -> specifier (char after "%")
                     mov bl, [rsi]
@@ -94,9 +108,6 @@ Specifier_handle:   inc rsi                         ; rsi -> specifier (char aft
                     cmp bl, 'x' - 'b'
                         ja case_default
 
-                    inc rcx
-                    cmp rcx, 6                      ; according to Stdcall, first 6 arguments saved in registers
-                        jne .skip_return_adr
                     inc rcx
                     
 .skip_return_adr:   jmp [Jmp_table + rbx * 8]       ; jump to appropriate case
@@ -273,7 +284,10 @@ Display_str:
 ;=================  DATA  =========================================================================================                    
 section .data
 
+Return_adr          dq 0                            
+Format_adr          dq 0
 Temp_num_buf        db 20 dup(0)
+
 Jmp_table:          dq case_b
                     dq case_c
                     dq case_d

@@ -4,12 +4,19 @@ extern "C" void my_printf(const char*, ...);
 
 int main() 
 {
-    int dec_num = -222;
+    int zero    = 0;
     int bin_num = 0b111000;
-    int hex_num = 0x333000;
-    const char* test_str = "777";
+    int dec_num = -222;
+    int oct_num = 0333;
+    int hex_num = 0xABC123;
+    const char* test_str = "STR";
 
-    my_printf("Hello world!(%d)(%x)(%b)(%s)%%%%%%", dec_num, hex_num, bin_num, test_str);
+    printf("====================================================================\n");
+    printf("1 message from MY_PRINTF | 2 message from STD PRINTF:\n\n");
+    
+    my_printf("HELLO WORLD!\n(%b) (%b) (%d) (%o) (%x) (%s) (%%%%%%%%%%) \n\n", zero, bin_num, dec_num, oct_num, hex_num, test_str);
+
+    printf("====================================================================\n");
 
     return 0;
 }
