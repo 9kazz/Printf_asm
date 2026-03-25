@@ -12,6 +12,7 @@ global my_printf
                     %endrep    
 %endmacro
                     
+
 %macro pop_ 1-*
                     %rep %0
                         pop %1
@@ -19,7 +20,8 @@ global my_printf
                     %endrep    
 %endmacro
 
-%macro Dump_Str_buf 0
+
+%macro DUMP_STR_BUF 0
                     push_ rsi, rdx, rcx
                     mov rsi, Str_buf                ; string adr
                     mov rdx, rdi                    
@@ -29,6 +31,18 @@ global my_printf
                     syscall
                     pop_ rcx, rdx, rsi
                     mov rdi, Str_buf
+%endmacro                    
+
+
+%define             from0to7 xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7
+
+%macro STORE_XMM 0-*
+                    %assign offset 0
+                    %rep %0
+                        movsd [xmm_vec + offset], %1
+                        %assign offset offset + 8
+                        %rotate 1
+                    %endrep
 %endmacro                    
             
 ;==================================================================================================================                    
@@ -58,7 +72,10 @@ global my_printf
 my_printf:          POP rax                         ; POP RETURN ADDRESS BECAUSE PRINTF (from "stdio.h") GET IT AS ARGUMENT
                     mov [Return_adr], rax           ; SAVE RETURN ADDRESS IN THE MEMORY 
 
-                    push_ r9, r8, rcx, rdx, rsi, rdi
+                    push_ r9, r8, rcx, rdx, rsi, rdi                    
+
+                    STORE_XMM from0to7
+                    xor r15, r15                    ; xmm_vec counter
 
                     pop rsi                         ; get string adr 
                     mov [Format_adr], rsi           ; save format address to use as argument fo printf ("stdio.h")
@@ -73,7 +90,7 @@ my_printf:          POP rax                         ; POP RETURN ADDRESS BECAUSE
 
 check_buf_size:     cmp rdi, Str_buf + Str_buf_size
                         jb get_char
-                    Dump_Str_buf
+                    DUMP_STR_BUF
 
 get_char:           cmp byte [rsi], 0
                         je end_printf
@@ -83,7 +100,7 @@ get_char:           cmp byte [rsi], 0
                     stosb
                     jmp check_buf_size
                     
-end_printf:         Dump_Str_buf
+end_printf:         DUMP_STR_BUF
                     pop rdi                         ; recover saved register
                     pop rbp
 
@@ -123,7 +140,7 @@ case_o:             mov rbx, 8
 case_b:             mov rdx, [rbp + rcx * 8]   ; get next argument   
                     cmp rdx, 1 << Extra_space + 1
                         jb .continue_b
-                    Dump_Str_buf
+                    DUMP_STR_BUF
                                   
     .continue_b:    mov rbx, 2
                     call Itoa_xob                
@@ -147,8 +164,17 @@ case_s:             push rsi
                     pop rsi
                     jmp check_buf_size
 
-case_f:             movsd xmm8, xmm0
-                    call Itoa_f
+case_f:             cmp r15, 8
+                        jb .take_arg_vec
+
+                    mov rax, [rbp + rcx * 8]
+                    cvtsi2sd xmm8, rax
+                    jmp .printf_double
+
+    .take_arg_vec:  movsd xmm8, [xmm_vec + 8 * r15]
+                    inc r15
+
+    .printf_double: call Itoa_f
                     jmp check_buf_size
 case_percent:       mov al, '%'       
                     stosb
@@ -276,7 +302,7 @@ Itoa_d:             push_ rbx, rdx, rsi
 Display_str:        
 .check_buf_size:    cmp rdi, Str_buf + Str_buf_size
                         jb .get_char
-                    Dump_Str_buf
+                    DUMP_STR_BUF
 
 .get_char:          cmp byte [rsi], 0
                         je .end
