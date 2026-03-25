@@ -147,6 +147,9 @@ case_s:             push rsi
                     pop rsi
                     jmp check_buf_size
 
+case_f:             movsd xmm8, xmm0
+                    call Itoa_f
+                    jmp check_buf_size
 case_percent:       mov al, '%'       
                     stosb
                     jmp check_buf_size
@@ -283,6 +286,57 @@ Display_str:
 
 .end:               ret
 
+;                   ITOA_F
+;------------------------------------------------------------------------------------------------------------------
+; Descr:    
+; Entry:    xmm8 == number to convert
+;           
+; Exit:     
+; Exp:      
+; Destr:    
+;------------------------------------------------------------------------------------------------------------------
+Itoa_f:             push_ rcx, rax
+
+                    ; movsd rcx, xmm8
+                    ; cmp rcx, 0                      ; check sign bit
+                    ;     jns .get_digit
+                    ; mov al, '-'
+                    ; stosb
+
+                    ; neg rcx
+                    ; movsd xmm8, rcx
+                                        
+
+; .get_mantissa:      movsd xmm9, xmm8
+;                     andsd xmm9, ~0 >> (64 - 52)
+
+; .get_exponent:      ands xmm8, 0x7FF << 52
+
+
+.get_digit:         cvttsd2si rax, xmm8              ; floored number
+                    cvtsi2sd xmm9, rax               ; int number stored as double
+                    call Itoa_d
+                    
+                    mov al, '.'
+                    stosb
+
+                    subsd xmm8, xmm9                 ; fractial part
+
+                    mov rax, 10
+                    cvtsi2sd xmm9, rax
+
+                    mov rcx, 6
+.get_frac_digit:    mulsd xmm8, xmm9
+                    loop .get_frac_digit
+
+                    cvtsd2si rax, xmm8              ; rounded to nearest number
+                    neg rax
+                    call Itoa_d
+
+                    pop_ rax, rcx
+                    ret
+
+
 ;=================  DATA  =========================================================================================                    
 section .data
 
@@ -290,10 +344,13 @@ Return_adr          dq 0
 Format_adr          dq 0
 Temp_num_buf        db 20 dup(0)
 
+xmm_vec             dq 8 dup(0)
 Jmp_table:          dq case_b
                     dq case_c
                     dq case_d
-                    dq 'o' - 'd' - 1 dup(case_default)
+                    dq case_default
+                    dq case_f
+                    dq 'o' - 'f' - 1 dup(case_default)
                     dq case_o
                     dq 's' - 'o' - 1 dup(case_default)
                     dq case_s                         

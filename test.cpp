@@ -10,12 +10,13 @@ int main()
     int oct_num = 0333;
     int hex_num = 0xABC123;
     const char* test_str = "STR";
+    double dub_num = -777.777;
 
     printf("====================================================================\n");
     printf("1 message from MY_PRINTF | 2 message from STD PRINTF:\n\n");
     
-    my_printf("HELLO WORLD!\n(%b) (%b) (%d) (%o) (%x) (%s) (%%%%%%%%%%) \n\n", zero, bin_num, dec_num, oct_num, hex_num, test_str);
-
+    // my_printf("HELLO WORLD!\n(%b) (%b) (%d) (%o) (%x) (%s) (%%%%%%%%%%) (%f)\n\n", zero, bin_num, dec_num, oct_num, hex_num, test_str, dub_num);
+my_printf("%f\n", dub_num);
     printf("====================================================================\n");
 
     return 0;
