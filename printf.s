@@ -1,4 +1,5 @@
 section .text
+default rel
 
 extern printf
 global my_printf  
@@ -23,14 +24,15 @@ global my_printf
 
 %macro DUMP_STR_BUF 0
                     push_ rsi, rdx, rcx
-                    mov rsi, Str_buf                ; string adr
-                    mov rdx, rdi                    
-                    sub rdx, Str_buf                ; rdx = string length
+                    lea rsi, Str_buf                ; string adr
+                    mov rdx, rdi                 
+                    lea rax, Str_buf   
+                    sub rdx, rax                    ; rdx = string length
                     mov rax, 0x01                   ; write64 (rdi, rsi, rdx) ... r10, r8, r9
                     mov rdi, 1                      ; stdout
                     syscall
                     pop_ rcx, rdx, rsi
-                    mov rdi, Str_buf
+                    lea rdi, Str_buf
 %endmacro                    
 
 
@@ -72,7 +74,7 @@ global my_printf
 ;------------------------------------------------------------------------------------------------------------------
 
 my_printf:          POP rax                         ; POP RETURN ADDRESS BECAUSE PRINTF (from "stdio.h") GET IT AS ARGUMENT
-                    mov [Return_adr], rax           ; SAVE RETURN ADDRESS IN THE MEMORY 
+                    mov [Return_adr], rax       ; SAVE RETURN ADDRESS IN THE MEMORY 
 
                     push_ r9, r8, rcx, rdx, rsi, rdi                    
 
@@ -87,10 +89,11 @@ my_printf:          POP rax                         ; POP RETURN ADDRESS BECAUSE
 
                     push rdi                        ; save register
 
-                    mov rdi, Str_buf
+                    lea rdi, Str_buf
                     xor rcx, rcx                    ; arguments counter
 
-check_buf_size:     cmp rdi, Str_buf + Str_buf_size
+check_buf_size:     lea rax, Str_buf + Str_buf_size
+                    cmp rdi, rax
                         jb get_char
                     DUMP_STR_BUF
 
@@ -109,7 +112,7 @@ end_printf:         DUMP_STR_BUF
                     pop_ rsi, rdx, rcx, r8, r9
                     mov rdi, [Format_adr]
 
-                    CALL printf                     ; call std printf
+                    ; CALL printf                     ; call std printf
 
                     mov rax, [Return_adr]
                     PUSH rax                        ; RECOVER RETURN ADDRESS FROM THE MEMORY
@@ -133,7 +136,7 @@ Specifier_handle:   inc rsi                         ; rsi -> specifier (char aft
 
                     inc rcx
                     
-                    jmp [Jmp_table + rbx * 8]       ; jump to appropriate case
+                    jmp [Jmp_table + rbx * 8]   ; jump to appropriate case
 
 ;                   === CASES ===
 
@@ -276,7 +279,7 @@ Itoa_xob:           push_ rbx, rcx, rdx
 Itoa_d:             push_ rbx, rdx, rsi
 
                     mov ebx, 10
-                    mov rsi, Temp_num_buf
+                    lea rsi, Temp_num_buf
 
                     cmp eax, 0                      ; check sign bit
                         jns .get_digit
@@ -298,7 +301,8 @@ Itoa_d:             push_ rbx, rdx, rsi
 .print_buf:         mov al, [rsi]
                     dec rsi
                     stosb
-                    cmp rsi, Temp_num_buf
+                    lea rax, Temp_num_buf
+                    cmp rsi, rax
                     jae .print_buf
 
                     pop_ rsi, rdx, rbx
@@ -311,10 +315,11 @@ Itoa_d:             push_ rbx, rdx, rsi
 ;           rdi -> buffer for saving the string
 ; Exit:     rdi -> first byte in buffer after saved number
 ; Exp:      --
-; Destr:    al
+; Destr:    rax
 ;------------------------------------------------------------------------------------------------------------------
 Display_str:        
-.check_buf_size:    cmp rdi, Str_buf + Str_buf_size
+.check_buf_size:    lea rax, Str_buf + Str_buf_size
+                    cmp rdi, rax
                         jb .get_char
                     DUMP_STR_BUF
 
@@ -400,9 +405,6 @@ section .data
 Return_adr          dq 0                            
 Format_adr          dq 0
 Temp_num_buf        db 20 dup(0)
-
-; Stk_cnt             db 0
-; Xmm_cnt             db 0
 
 Xmm_vec             dq 8 dup(0)
 Jmp_table:          dq case_b

@@ -15,7 +15,8 @@ printf.o: printf.s
 asminc: asminc.exe
 
 asminc.exe: printf.o test.cpp
-	g++ -no-pie printf.o test.cpp -o asminc.exe
+# 	g++ -no-pie printf.o test.cpp -o asminc.exe
+	g++ printf.o test.cpp -o asminc.exe
 	@echo -----------------------------------------------------------------------
 	
 clean:
