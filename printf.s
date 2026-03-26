@@ -24,15 +24,15 @@ global my_printf
 
 %macro DUMP_STR_BUF 0
                     push_ rsi, rdx, rcx
-                    lea rsi, Str_buf                ; string adr
+                    lea rsi, [Str_buf]              ; string adr
                     mov rdx, rdi                 
-                    lea rax, Str_buf   
+                    lea rax, [Str_buf]   
                     sub rdx, rax                    ; rdx = string length
                     mov rax, 0x01                   ; write64 (rdi, rsi, rdx) ... r10, r8, r9
                     mov rdi, 1                      ; stdout
                     syscall
                     pop_ rcx, rdx, rsi
-                    lea rdi, Str_buf
+                    lea rdi, [Str_buf]
 %endmacro                    
 
 
@@ -74,7 +74,7 @@ global my_printf
 ;------------------------------------------------------------------------------------------------------------------
 
 my_printf:          POP rax                         ; POP RETURN ADDRESS BECAUSE PRINTF (from "stdio.h") GET IT AS ARGUMENT
-                    mov [Return_adr], rax       ; SAVE RETURN ADDRESS IN THE MEMORY 
+                    mov [Return_adr], rax           ; SAVE RETURN ADDRESS IN THE MEMORY 
 
                     push_ r9, r8, rcx, rdx, rsi, rdi                    
 
@@ -89,10 +89,10 @@ my_printf:          POP rax                         ; POP RETURN ADDRESS BECAUSE
 
                     push rdi                        ; save register
 
-                    lea rdi, Str_buf
+                    lea rdi, [Str_buf]
                     xor rcx, rcx                    ; arguments counter
 
-check_buf_size:     lea rax, Str_buf + Str_buf_size
+check_buf_size:     lea rax, [Str_buf + Str_buf_size]
                     cmp rdi, rax
                         jb get_char
                     DUMP_STR_BUF
@@ -112,7 +112,7 @@ end_printf:         DUMP_STR_BUF
                     pop_ rsi, rdx, rcx, r8, r9
                     mov rdi, [Format_adr]
 
-                    ; CALL printf                     ; call std printf
+                    CALL printf wrt ..plt           ; call std printf
 
                     mov rax, [Return_adr]
                     PUSH rax                        ; RECOVER RETURN ADDRESS FROM THE MEMORY
@@ -136,7 +136,8 @@ Specifier_handle:   inc rsi                         ; rsi -> specifier (char aft
 
                     inc rcx
                     
-                    jmp [Jmp_table + rbx * 8]   ; jump to appropriate case
+                    lea rax, [Jmp_table]
+                    jmp [rax + rbx * 8]             ; jump to appropriate case
 
 ;                   === CASES ===
 
@@ -188,7 +189,8 @@ case_f:             mov dl, 6                       ; set precision by default
                     cvtsi2sd xmm8, rax
                     jmp .printf_double
 
-    .take_arg_vec:  movsd xmm8, [Xmm_vec + 8 * r15]
+    .take_arg_vec:  lea rax, [Xmm_vec] 
+                    movsd xmm8, [rax + r15 * 8] 
                     inc r15
 
     .printf_double: call Itoa_f
@@ -279,7 +281,7 @@ Itoa_xob:           push_ rbx, rcx, rdx
 Itoa_d:             push_ rbx, rdx, rsi
 
                     mov ebx, 10
-                    lea rsi, Temp_num_buf
+                    lea rsi, [Temp_num_buf]
 
                     cmp eax, 0                      ; check sign bit
                         jns .get_digit
@@ -301,7 +303,7 @@ Itoa_d:             push_ rbx, rdx, rsi
 .print_buf:         mov al, [rsi]
                     dec rsi
                     stosb
-                    lea rax, Temp_num_buf
+                    lea rax, [Temp_num_buf]
                     cmp rsi, rax
                     jae .print_buf
 
@@ -318,7 +320,7 @@ Itoa_d:             push_ rbx, rdx, rsi
 ; Destr:    rax
 ;------------------------------------------------------------------------------------------------------------------
 Display_str:        
-.check_buf_size:    lea rax, Str_buf + Str_buf_size
+.check_buf_size:    lea rax, [Str_buf + Str_buf_size]
                     cmp rdi, rax
                         jb .get_char
                     DUMP_STR_BUF
