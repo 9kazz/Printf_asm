@@ -140,7 +140,8 @@ case_x:             mov rbx, 16
 case_o:             mov rbx, 8
                         jmp case_xo
 case_b:             mov rdx, [rbp + rcx * 8]        ; get next argument   
-                    cmp rdx, 1 << Extra_space + 1
+                    mov rax, 1 << Extra_space + 1
+                    cmp rdx, rax 
                         jb .continue_b
                     DUMP_STR_BUF
                                   
@@ -217,7 +218,8 @@ Itoa_xob:           push_ rbx, rcx, rdx
 
 .check_system8:     cmp rbx, 8
                         jne .itoa
-                    test rdx, 1<<63
+                    mov rax, 1 << 63
+                    test rdx, rax
                         jz .align8
                     mov al, 1
                     stosb
@@ -262,7 +264,7 @@ Itoa_xob:           push_ rbx, rcx, rdx
 
 ;                   ITOA_D
 ;------------------------------------------------------------------------------------------------------------------
-; Descr:    convert number into decimal number system and store it as a string
+; Descr:    convert integer number into decimal number system and store it as a string
 ; Entry:    rax == number to convert
 ;           rdi -> buffer for saving the string
 ; Exit:     rdi -> first byte in buffer after saved number
@@ -324,50 +326,35 @@ Display_str:
 
 ;                   ITOA_F
 ;------------------------------------------------------------------------------------------------------------------
-; Descr:    
+; Descr:    convert double number into decimal number system and store it as a string
 ; Entry:    xmm8 == number to convert
 ;           dl   == count of digits in fractial part
-; Exit:     
-; Exp:      
-; Destr:    
+; Exit:     rdi -> first byte in buffer after saved number
+; Exp:      created Temp_num_buf (capacity not less than 20 bytes) to temporary saving and reversing number
+; Destr:    xmm8,xmm9
+; Note:     cannot convert integer and fractial parts more than 64 bits
+;           you can use pricision specifier to chose how many digits in fractial part you want to get (more than 0, but no more than 9).
+;           by default number contain 6 digits in fractial part.
+
+;           Example: 
+;           double double_num = -12.1234567890
+;           my_printf("%.7f", double_num);  >>>>> -12.1234567
+;           
+;           double double_num = 1.2340000
+;           my_printf("%f, double_num );  >>>>> 1.234
 ;------------------------------------------------------------------------------------------------------------------
-Itoa_f:             push_ rcx, rax
-
-;                     movq rax, xmm8
-;                     test rax, rax
-;                         jns .positive_num
-;                     mov al, '$'
-;                     stosb
-;                     ; and rax, 0x7FFFFFFFFFFFFFFF      ; make number positive
-;                     and rax, 0x123456789ABCDEF      ; make number positive
-;                     movq xmm8, rax
-
-; .positive_num:      cvttsd2si rax, xmm8              ; floored number
-
-; .get_int_digit:     cvtsi2sd xmm9, rax               ; int number stored as double
-;                     call Itoa_d
-                    
-;                     mov al, '.'
-;                     stosb
-
-;                     subsd xmm8, xmm9                 ; fractial part
-
-;                     mov rax, 10
-;                     cvtsi2sd xmm9, rax
-
-;                     xor rcx, rcx
-;                     mov cl, dl
-
-; .get_frac_digit:    mulsd xmm8, xmm9
-;                     loop .get_frac_digit
-
-;                     cvtsd2si rax, xmm8              ; rounded to nearest number
-
-;                     call Itoa_d
+Itoa_f:             push rcx
 
 .get_digit:         movq rax, xmm8
+                    mov rcx, 1 << 63
+                    test rax, rcx
+                        jz .positive_num
+                    mov al, '-'
+                    stosb
+                    xor rax, rcx                     ; make number positive
+                    movq xmm8, rax
 
-                    cvttsd2si rax, xmm8              ; floored number
+.positive_num:      cvttsd2si rax, xmm8              ; floored number
                     cvtsi2sd xmm9, rax               ; int number stored as double
                     call Itoa_d
                     
@@ -395,12 +382,13 @@ Itoa_f:             push_ rcx, rax
                     cvtsd2si rax, xmm8               ; rounded to nearest number
 
                     test rax, rax
-                        jns .print_frac
+                        jz .end
+                            jns .print_frac
                     neg rax
-
+                        
 .print_frac:        call Itoa_d
 
-                    pop_ rax, rcx
+.end:               pop rcx
                     ret
 
 
@@ -411,8 +399,8 @@ Return_adr          dq 0
 Format_adr          dq 0
 Temp_num_buf        db 20 dup(0)
 
-Stk_cnt             db 0
-Xmm_cnt             db 0
+; Stk_cnt             db 0
+; Xmm_cnt             db 0
 
 Xmm_vec             dq 8 dup(0)
 Jmp_table:          dq case_b
