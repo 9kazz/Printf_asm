@@ -377,6 +377,7 @@ Itoa_f:             push rcx
 
                     xor rcx, rcx
                     mov cl, dl
+                    dec cl
 
 .get_frac_digit:    mulsd xmm8, xmm9
 
@@ -388,6 +389,7 @@ Itoa_f:             push rcx
 
     .continue:      loop .get_frac_digit
 
+                    mulsd xmm8, xmm9                 ; get last digit
                     cvtsd2si rax, xmm8               ; rounded to nearest number
 
                     test rax, rax
@@ -399,7 +401,6 @@ Itoa_f:             push rcx
 
 .end:               pop rcx
                     ret
-
 
 ;=================  DATA  =========================================================================================                    
 section .data

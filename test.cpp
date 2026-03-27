@@ -11,16 +11,15 @@ int main()
     int hex_num = 0xABC123;
     char character = '$';
     const char* test_str = "STR";
-    double dub_num1 = -0.999;
-    double dub_num2 = 444.004;
+    double dub_num1 = -0.009;
+    double dub_num2 = -0.009;
 
 
     printf("====================================================================\n");
     printf("1 message from MY_PRINTF | 2 message from STD PRINTF:\n\n");
     
-    // my_printf("HELLO WORLD!\n(%b) (%b) (%d) (%o) (%x) (%c) (%s) \"%%%%%%%%%%\" (%f) (%.2f)\n\n", zero, bin_num, dec_num, oct_num, hex_num, character, test_str, dub_num1, dub_num2);
+    my_printf("HELLO WORLD!\n(%b) (%b) (%d) (%o) (%x) (%c) (%s) \"%%%%%%%%%%\" (%f) (%.2f)\n\n", zero, bin_num, dec_num, oct_num, hex_num, character, test_str, dub_num1, dub_num2);
 
-    my_printf("%d %s %x %d%%%c%b\n", -1, "love", 3802, 100, 33, 126);
     printf("====================================================================\n");
 
     return 0;
