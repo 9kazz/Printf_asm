@@ -45,6 +45,24 @@ global my_printf
                         %assign offset offset + 8
                         %rotate 1
                     %endrep
+%endmacro             
+
+
+%macro NO_MEM_PRINT 1
+                    %push NO_MEM_PRINT
+
+                    %defstr %$str %1
+                    %strlen %$len %$str
+                    %assign cnt 1
+
+                    %rep %$len
+                        %substr %$char %$str cnt
+                        mov al, %$char
+                        stosb
+                        %assign cnt cnt + 1
+                    %endrep
+
+                    %pop
 %endmacro                    
             
 ;==================================================================================================================                    
@@ -352,18 +370,26 @@ Display_str:
 ;           double double_num = 1.2340000
 ;           my_printf("%f, double_num );  >>>>> 1.234
 ;------------------------------------------------------------------------------------------------------------------
-Itoa_f:             push rcx
+Itoa_f:             push_ rcx, rbx
 
-.get_digit:         movq rax, xmm8
-                    mov rcx, 1 << 63
-                    test rax, rcx
+                    movq rcx, xmm8
+                    mov rbx, 1 << 63
+
+                    test rcx, rbx
                         jz .positive_num
-                    mov al, '-'
-                    stosb
-                    xor rax, rcx                     ; make number positive
-                    movq xmm8, rax
 
-.positive_num:      cvttsd2si rax, xmm8              ; floored number
+.negative_num:      mov al, '-'
+                        stosb
+                    xor rcx, rbx                     ; make number positive
+
+.positive_num:      mov rax, 0x7FF0000000000000
+                    mov rbx, rax
+                    and rax, rcx                    ; exponent
+                    xor rbx, rax                     
+                        jz .handle_nan_inf
+
+                    movq xmm8, rcx
+                    cvttsd2si rax, xmm8              ; floored number
                     cvtsi2sd xmm9, rax               ; int number stored as double
                     call Itoa_d
                     
@@ -399,8 +425,18 @@ Itoa_f:             push rcx
                         
 .print_frac:        call Itoa_d
 
-.end:               pop rcx
+.end:               pop_ rbx, rcx
                     ret
+
+.handle_nan_inf:    mov rax, 0x000FFFFFFFFFFFFF
+                    test rax, rcx
+                        jz .inf
+
+    .nan:           NO_MEM_PRINT nan
+                    jmp .end
+                
+    .inf:           NO_MEM_PRINT inf
+                    jmp .end
 
 ;=================  DATA  =========================================================================================                    
 section .data
